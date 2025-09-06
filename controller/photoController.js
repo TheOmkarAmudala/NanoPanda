@@ -78,6 +78,9 @@ export const uploadPhoto = async (req, res) => {
         if (!req.file) {
             return res.status(400).json({ message: "No photo uploaded" });
         }
+        console.log("Received file:", req.file);
+        console.log("Body:", req.body);
+
 
         const filePath = `uploads/${req.file.filename}`;
         const embedding = await generateFaceEmbedding(filePath);
