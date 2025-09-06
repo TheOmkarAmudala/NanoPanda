@@ -2,6 +2,7 @@
   "name": "untitled10",
   "version": "1.0.0",
   "main": "index.js",
+  "type": "module",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -10,10 +11,14 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@tensorflow-models/blazeface": "^0.1.0",
+    "@tensorflow-models/mobilenet": "^2.1.1",
+    "@tensorflow/tfjs": "^4.22.0",
     "cors": "^2.8.5",
     "dotenv": "^17.2.2",
     "express": "^5.1.0",
     "mongoose": "^8.18.0",
-    "multer": "^2.0.2"
+    "multer": "^2.0.2",
+    "sharp": "^0.34.3"
   }
 }
