@@ -4,6 +4,7 @@ import dotenv from "dotenv";
 import cors from "cors";
 import photoRoutes from "./routes/photoRoutes.js";
 import authRouter from './routes/authRouter.js';
+import logRoute from './routes/logRoute.js';
 
 dotenv.config();
 
@@ -22,6 +23,6 @@ app.use("/uploads", express.static("uploads"));
 
 app.use("/api", photoRoutes);
 app.use('/api/auth', authRouter);
-
+app.use('/api/logs', logRoute);
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
