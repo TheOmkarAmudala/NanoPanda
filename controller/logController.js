@@ -3,7 +3,8 @@ import SuspiciousActivity from "../models/SuspiciousActivity.js";
 /**
  * Capture and save suspicious activity logs from the frontend.
  * @param {object} req - Express request object.
- * @param {object} res - Express response object. */
+ * @param {object} res - Express response object.
+ */
 export const captureLog = async (req, res) => {
     try {
         const logData = req.body;

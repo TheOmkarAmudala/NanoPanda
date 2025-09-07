@@ -1,103 +1,42 @@
-import { FerLog } from '../models/FerLog.js';
-import * as faceapi from 'face-api.js';
-import canvas from 'canvas';
-import fs from 'fs';
-import path from 'path';
-import * as tf from '@tensorflow/tfjs-node';
+import axios from 'axios';
+import FormData from 'form-data';
 
-const { Canvas, Image, ImageData } = canvas;
-faceapi.env.monkeyPatch({ Canvas, Image, ImageData });
-await tf.ready();
-
-// Path to your downloaded face-api.js weights
-const MODEL_PATH = path.resolve('./face-api.js/weights');
-
-// Load models at startup
-export const loadFaceApiModels = async () => {
+export const detectEmotion = async (req, res) => {
     try {
-        await faceapi.nets.ssdMobilenetv1.loadFromDisk(MODEL_PATH); // face detection
-        await faceapi.nets.faceExpressionNet.loadFromDisk(MODEL_PATH); // emotion
-        await faceapi.nets.faceRecognitionNet.loadFromDisk(MODEL_PATH); // face recognition (for embeddings)
-        await faceapi.nets.faceLandmark68Net.loadFromDisk(MODEL_PATH); // landmarks (required for face recognition)
-        console.log("✔️ Face-api.js models loaded successfully!");
-    } catch (err) {
-        console.error("❌ Failed to load face-api.js models:", err.message);
-        throw err;
-    }
-};
+        if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
 
-// Immediately load models when this module is imported.
-(async () => {
-    try {
-        await loadFaceApiModels();
-    } catch (err) {
-        // Exit the process if models fail to load, as the app is unusable.
-        process.exit(1);
-    }
-})();
+        const form = new FormData();
+        form.append('api_key', 'VvNOTJ3Xc9ADGVgTTR99O2Nbs04NvOsT');
+        form.append('api_secret', 'RYVPcaqGhEs8t3UkNE84VRKZUv0fLq7Z');
+        form.append('image_file', req.file.buffer, { filename: req.file.originalname });
+        form.append('return_attributes', 'emotion');
 
-// Predict emotion from uploaded image
-export const predictEmotion = async (req, res) => {
-    try {
-        const photoFile = req.file;
+        const response = await axios.post(
+            'https://api-us.faceplusplus.com/facepp/v3/detect',
+            form,
+            { headers: form.getHeaders() }
+        );
 
-        if (!photoFile) {
-            return res.status(400).json({ message: "No photo file uploaded." });
+        if (response.data.faces && response.data.faces.length > 0) {
+            const emotions = response.data.faces[0].attributes.emotion;
+
+            // Find the emotion with the highest value
+            let maxEmotion = '';
+            let maxScore = -Infinity;
+            for (const [emotion, score] of Object.entries(emotions)) {
+                if (score > maxScore) {
+                    maxScore = score;
+                    maxEmotion = emotion;
+                }
+            }
+
+            return res.json({ success: true, emotion: maxEmotion, score: maxScore });
+        } else {
+            return res.json({ success: false, message: 'No face detected' });
         }
-
-        // Load image
-        const img = await canvas.loadImage(photoFile.path);
-        console.log('Image loaded:', img.width, img.height);
-
-        // Clean up the uploaded file
-        fs.unlinkSync(photoFile.path);
-
-        // Detect face, landmarks, expressions, and descriptor
-        const detections = await faceapi
-            .detectSingleFace(img)
-            .withFaceLandmarks()
-            .withFaceExpressions()
-            .withFaceDescriptor();
-
-        if (!detections) {
-            return res.status(400).json({ message: "No face detected in the image." });
-        }
-
-        // Get expressions
-        const expressions = detections.expressions;
-        const sorted = Object.entries(expressions).sort((a, b) => b[1] - a[1]);
-        const [predictedEmotion, confidence] = sorted[0];
-
-        // Get embedding (face descriptor)
-        const embedding = detections.descriptor;
-
-        console.log(`✔️ Emotion predicted: ${predictedEmotion} (${confidence.toFixed(2)})`);
-        console.log('Embedding length:', embedding.length, 'Non-zero elements:', embedding.filter(x => x !== 0).length);
-
-        res.status(200).json({
-            message: "Emotion predicted successfully.",
-            predicted_emotion: predictedEmotion,
-            all_scores: expressions,
-            embedding: embedding // Include embedding for debugging
-        });
-
-    } catch (err) {
-        console.error("❌ Error in predictEmotion:", err.message, err.stack);
-        res.status(500).json({ message: "Failed to process image and make prediction.", error: err.message });
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ error: 'Face++ API error', details: error.message });
     }
 };
-// Log emotion prediction to DB (optional, can be called from frontend)
-export const logPrediction = async (userId, emotionData) => {
-    try {
-        const newLog = new FerLog({
-            user_id: userId,
-            image_path: emotionData.imagePath,
-            predicted_emotion: emotionData.predicted_emotion,
-            emotion_scores: emotionData.all_scores,
-        });
-        await newLog.save();
-        console.log(`✔️ Prediction logged for user: ${userId}`);
-    } catch (err) {
-        console.error("❌ Failed to save log:", err.message);
-    }
-};
+
