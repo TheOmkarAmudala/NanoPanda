@@ -8,16 +8,23 @@ import SuspiciousActivity from "../models/SuspiciousActivity.js";
 export const captureLog = async (req, res) => {
     try {
         const logData = req.body;
+        const photoFile = req.file;
 
         // Basic validation of incoming data
-        if (!logData.user_id || !logData.device_id || !logData.actions) {
-            return res.status(400).json({ message: "Invalid log data provided." });
+        if (!logData.user_id || !logData.device_id || !logData.actions || !photoFile) {
+            return res.status(400).json({ message: "Invalid log data or no photo provided." });
         }
 
-        const newLog = new SuspiciousActivity(logData);
+        // Add the photo path to the log data
+        const newLogData = {
+            ...logData,
+            photo_path: photoFile.path, // Save the path to the photo file
+        };
+
+        const newLog = new SuspiciousActivity(newLogData);
         await newLog.save();
 
-        console.log(`New suspicious activity log saved for user: ${logData.user_id}`);
+        console.log(`New suspicious activity log saved for user: ${newLogData.user_id} with photo path: ${newLogData.photo_path}`);
         res.status(201).json({ message: "Log captured successfully.", log: newLog });
 
     } catch (err) {
