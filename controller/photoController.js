@@ -1,4 +1,5 @@
 import Photo from "../models/user.js";
+import SuspiciousUser from "../models/SuspiciousUser.js";
 import * as mobilenet from "@tensorflow-models/mobilenet";
 import * as blazeface from "@tensorflow-models/blazeface";
 import * as tf from "@tensorflow/tfjs-core";
@@ -6,42 +7,23 @@ import * as tfBackendCPU from "@tensorflow/tfjs-backend-cpu";
 import fs from "fs/promises";
 import sharp from "sharp";
 
-// Register CPU backend
-async function initializeBackend() {
-    console.time("Initialize CPU Backend");
-    console.log("Starting CPU backend initialization...");
-    try {
-        await tf.setBackend("cpu");
-        await tf.ready();
-        console.log("CPU backend initialized successfully");
-    } catch (err) {
-        console.error("Failed to initialize CPU backend:", err);
-        throw new Error("Failed to initialize TensorFlow.js CPU backend");
-    } finally {
-        console.timeEnd("Initialize CPU Backend");
-    }
-}
+// Use the pure JavaScript CPU backend to avoid native module issues.
+// Explicitly importing the CPU backend registers it for use.
+tf.setBackend('cpu');
 
-// Load models with detailed timing
+// === Model Loading: Load once when the server starts ===
 let faceModel;
 let mobilenetModel;
+
+// A promise to track if the models are ready.
+let modelsReadyPromise;
 
 async function loadModels() {
     try {
         console.time("Total Model Loading");
-
-        console.time("Load BlazeFace Model");
-        console.log("Starting BlazeFace model loading...");
+        console.log("Loading TensorFlow.js models...");
         faceModel = await blazeface.load();
-        console.log("BlazeFace model loaded");
-        console.timeEnd("Load BlazeFace Model");
-
-        console.time("Load MobileNet Model");
-        console.log("Starting MobileNet model loading...");
         mobilenetModel = await mobilenet.load();
-        console.log("MobileNet model loaded");
-        console.timeEnd("Load MobileNet Model");
-
         console.log("All models loaded successfully!");
         console.timeEnd("Total Model Loading");
     } catch (err) {
@@ -52,8 +34,8 @@ async function loadModels() {
 
 // Initialize backend and models
 async function initialize() {
-    await initializeBackend();
-    await loadModels();
+    await tf.ready();
+    modelsReadyPromise = loadModels();
 }
 initialize().catch((err) => {
     console.error("Initialization failed:", err);
@@ -82,6 +64,11 @@ async function logError(error, filePath) {
  * @returns {Promise<number[]>} - A promise that resolves with the embedding vector.
  */
 async function generateFaceEmbedding(filePath) {
+    // Wait for models to be ready before proceeding.
+    if (modelsReadyPromise) {
+        await modelsReadyPromise;
+    }
+
     console.time("Total Embedding Generation");
     console.log("Starting embedding generation for:", filePath);
 
@@ -209,22 +196,34 @@ async function generateFaceEmbedding(filePath) {
  * @param {string} filePath - Path to the image file.
  * @param {Object} photoData - Data to save to the database.
  */
-async function processPhotoInBackground(filePath, photoData) {
+export async function processPhotoInBackground(filePath, photoData) {
     try {
         console.log("Starting background processing for:", filePath);
         const embedding = await generateFaceEmbedding(filePath);
 
-        console.time("Save to Database");
-        console.log("Saving photo to database...");
-        const newPhoto = new Photo({
-            filename: photoData.filename,
-            path: photoData.path,
-            embedding: embedding, // Save embedding
-        });
+        // Check if a legit user already exists.
+        const legitUser = await SuspiciousUser.findOne({ isLegit: true });
 
-        await newPhoto.save();
-        console.log("--> Photo saved to database:", newPhoto._id);
-        console.timeEnd("Save to Database");
+        if (legitUser) {
+            console.log("Legit user already exists. Saving photo to standard collection.");
+            const newPhoto = new Photo({
+                ...photoData,
+                embedding: embedding,
+            });
+            await newPhoto.save();
+        } else {
+            console.log("No legit user found. Saving this as the first legit user.");
+            const newSuspiciousUser = new SuspiciousUser({
+                filename: photoData.filename,
+                path: photoData.path,
+                embedding: embedding,
+                isLegit: true,
+                suspiciousCount: 0,
+            });
+            await newSuspiciousUser.save();
+        }
+        console.log("--> Background processing completed successfully for:", filePath);
+
     } catch (err) {
         console.error("Background processing error:", err.message);
         await logError(err, filePath);

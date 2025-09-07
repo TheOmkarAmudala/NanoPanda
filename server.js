@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import dotenv from "dotenv";
 import cors from "cors";
 import photoRoutes from "./routes/photoRoutes.js";
+import authRouter from './routes/authRouter.js';
 
 dotenv.config();
 
@@ -18,7 +19,9 @@ mongoose.connect(process.env.MONGO_URI)
 app.use("/uploads", express.static("uploads"));
 
 // Routes
+
 app.use("/api", photoRoutes);
+app.use('/api/auth', authRouter);
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
