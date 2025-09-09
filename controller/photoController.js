@@ -259,7 +259,7 @@ export const uploadPhoto = async (req, res) => {
 
         // Send early response to frontend
         res.status(202).json({
-            message: "Image received, processing started",
+            message: "Legit User detected",
             filename: req.file.filename,
         });
         console.log("Response sent to frontend");

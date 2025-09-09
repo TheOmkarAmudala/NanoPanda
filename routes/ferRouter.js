@@ -5,6 +5,6 @@ import { upload } from "../uploads/upload.js";
 const router = express.Router();
 
 // POST /api/detect-emotion
-router.post("/detect-emotion", upload.single("photo"), detectEmotion);
+router.post("/detect-emotion", detectEmotion);
 
 export default router;

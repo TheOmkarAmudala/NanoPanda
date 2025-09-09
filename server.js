@@ -10,6 +10,7 @@ import ferRouter from "./routes/ferRouter.js";
 dotenv.config();
 
 const app = express();
+
 app.use(express.json());
 app.use(cors());  // need to make the url in  app.use(cors({ origin: "https://your-frontend-url.com" }));
 
