@@ -6,8 +6,8 @@ export const detectEmotion = async (req, res) => {
         if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
 
         const form = new FormData();
-        form.append('api_key', 'VvNOTJ3Xc9ADGVgTTR99O2Nbs04NvOsT');
-        form.append('api_secret', 'RYVPcaqGhEs8t3UkNE84VRKZUv0fLq7Z');
+        form.append('api_key', 'w3CyygjOOJ2ILg4KR4mw6P1yXoi-KJn_');
+        form.append('api_secret', 'pIowb8ki62NBm1AWLmL183MSEaEixkLI');
         form.append('image_file', req.file.buffer, { filename: req.file.originalname });
         form.append('return_attributes', 'emotion');
 
